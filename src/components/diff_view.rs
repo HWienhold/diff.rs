@@ -1,4 +1,5 @@
 use crate::{
+    bench::{log_timed_event, time},
     data::{ChunkInfo, FileDiff, VersionDiff},
     syntax::{highlight_changes, infer_syntax_for_file, syntect_style_to_css},
 };
@@ -47,6 +48,8 @@ fn FileIcon() -> Html {
 
 #[function_component]
 pub fn DiffView(props: &DiffViewProps) -> Html {
+    let starttime = time();
+    log_timed_event(format!("Start: Rendering diff view for {}", props.path).as_str());
     let empty = FileDiff::default();
     let file_diff = props.diff.files.get(&props.path).unwrap_or(&empty);
     let summary = props.diff.summary.get(&props.path).unwrap_or(&(0, 0));
@@ -113,7 +116,7 @@ pub fn DiffView(props: &DiffViewProps) -> Html {
         });
     }
 
-    html! {
+    let content = html! {
         <div class="diff-view">
             <div class="header">
                 <FileIcon />
@@ -129,7 +132,15 @@ pub fn DiffView(props: &DiffViewProps) -> Html {
                 }
             </div>
         </div>
-    }
+    };
+
+    let end_time = time();
+    log_timed_event(&format!(
+        "End: Rendering diff view for {} took {} ms",
+        props.path,
+        end_time - starttime
+    ));
+    content
 }
 
 #[function_component]
@@ -149,16 +160,17 @@ pub fn LazyDiffView(props: &DiffViewProps) -> Html {
                 .context_ranges
                 .iter()
                 .map(|chunk| chunk.len())
-                .sum::<usize>(),
+                .sum::<usize>(), // + file_diff.changes.len(),
         )
     };
 
     html! {
-        <div ref={node}>
+        <div ref={node} >
             if visible {
                     <DiffView diff={props.diff.clone()} path={props.path.clone()} />
             } else {
                <div style={format!("height: {}px; width: 100%;", len_estimation.unwrap_or(0)*24)} />
+              // <div style={"height: 1000px; width: 100%;"} />
             }
         </div>
     }

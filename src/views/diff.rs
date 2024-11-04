@@ -1,7 +1,18 @@
-use crate::{cache::*, components::*, data::*, version::VersionId, Route};
+use crate::{
+    bench::{log_timed_event, start_timed_event},
+    cache::*,
+    components::*,
+    data::*,
+    version::VersionId,
+    Route,
+};
 use camino::Utf8PathBuf;
 use semver::Version;
 use std::{collections::BTreeMap, sync::Arc};
+use web_sys::{
+    wasm_bindgen::{prelude::Closure, JsCast},
+    window,
+};
 use yew::{prelude::*, suspense::*};
 use yew_router::prelude::*;
 
@@ -268,13 +279,13 @@ pub fn SourceView(props: &SourceViewProps) -> Html {
         VersionDiff::new(old.clone(), new.clone())
     });
     let navigator = use_navigator().unwrap();
-
+    start_timed_event(props.path.as_str(), "started rendering");
     let files = determine_display_files(&FileTreeProps {
         diff: diff.clone(),
         path: props.path.clone(),
     });
-
-    html! {
+    log_timed_event("Finished determining display files");
+    let content = html! {
         <>
             <ComplexNavbar
                 src_name={props.src_info.krate.id.clone()}
@@ -306,12 +317,31 @@ pub fn SourceView(props: &SourceViewProps) -> Html {
                         />
                     </nav>
                     <div id="diff-view" class="flex-1">
-                    { for (*files).iter().map(|path| html!{<LazyDiffView diff={diff.clone()} path={path.clone()} /> }) }
+                    { for (*files).iter().map(| path| html!{
+                    <div key={path.to_string()} >
+                            <LazyDiffView diff={diff.clone()} path={path.clone()} />
+                       </div>
+                     }) }
                     </div>
                 </main>
             </Content>
         </>
-    }
+    };
+
+    log_timed_event("Finished initializing empty divs");
+
+    let callback = Closure::wrap(Box::new(move || {
+        log_timed_event("Callback called");
+    }) as Box<dyn Fn()>);
+
+    window()
+        .expect("window should be available")
+        .request_animation_frame(callback.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
+
+    callback.forget();
+
+    content
 }
 
 fn determine_display_files(props: &FileTreeProps) -> Vec<Utf8PathBuf> {

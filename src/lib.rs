@@ -5,6 +5,7 @@
 //! it, running a diff algorithm over the files and rendering the diff. Support syntax highlighting
 //! provided by the `syntect` crate.
 
+pub mod bench;
 mod cache;
 pub mod components;
 mod data;
